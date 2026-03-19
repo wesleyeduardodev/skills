@@ -134,13 +134,9 @@ Quando precisar passar caminhos de arquivos para o WSL (ex: docker-compose.yml),
 ## Descobrir docker-compose do projeto atual
 
 Se o usuario pedir para subir/descer servicos sem especificar o compose file,
-procure um `docker-compose.yml` ou `compose.yml` no projeto atual:
-
-```bash
-find . -maxdepth 3 -name "docker-compose.yml" -o -name "compose.yml" 2>/dev/null
-```
-
-Se encontrar, converta o caminho para WSL e use. Se encontrar varios, pergunte qual.
+procure um `docker-compose.yml` ou `compose.yml` no projeto atual.
+Use Glob para encontrar os arquivos. Se encontrar, converta o caminho para WSL e use.
+Se encontrar varios, pergunte qual.
 
 ## Regras
 

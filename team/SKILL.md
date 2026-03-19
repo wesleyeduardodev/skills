@@ -220,7 +220,7 @@ Criar Agent Team com 3 teammates para investigar erro 500 em /api/obras:
   mapa do fluxo com hipoteses de causa.
 
 - "investigador-dados": Verifica o estado do banco, queries, dados nas
-  tabelas envolvidas (silver_obras, gold views). Testa queries isoladas.
+  tabelas envolvidas. Testa queries isoladas.
   Entregavel: estado dos dados e queries que falham/funcionam.
 
 - "investigador-config": Verifica configuracoes (application.yml, env vars,

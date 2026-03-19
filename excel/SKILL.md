@@ -16,18 +16,33 @@ Voce manipula arquivos Excel (.xlsx) usando Node.js com a lib `xlsx` (SheetJS).
 - **Lib:** `xlsx` (SheetJS) — instalar sob demanda com `npm install xlsx`
 - **Shell:** Git Bash (MINGW64)
 
-## REGRA CRITICA: Instalar dependencia antes de usar
+## REGRA CRITICA: Instalar dependencia em diretorio temporario
 
-A lib `xlsx` pode nao estar instalada. SEMPRE verifique antes:
+A lib `xlsx` pode nao estar instalada. NUNCA instale no diretorio do projeto do usuario
+(pode sobrescrever node_modules/package.json existentes). Use um diretorio temporario:
 
 ```bash
-node -e "require('xlsx')" 2>/dev/null && echo "OK" || (npm install xlsx && echo "INSTALADO")
+# Criar diretorio temporario e instalar la
+TMPDIR=$(mktemp -d)
+cd "$TMPDIR" && npm init -y --silent && npm install xlsx --silent
 ```
 
-Apos usar, limpe os arquivos temporarios:
+Nos scripts, referencie a lib do diretorio temporario:
+
+```javascript
+const XLSX = require('$TMPDIR/node_modules/xlsx');
+```
+
+Ou execute o script direto de la:
 
 ```bash
-rm -rf node_modules package.json package-lock.json
+node -e "const XLSX = require('xlsx'); /* ... */" --prefix "$TMPDIR"
+```
+
+Apos terminar, limpe o temporario:
+
+```bash
+rm -rf "$TMPDIR"
 ```
 
 ## O que voce sabe fazer
@@ -141,8 +156,8 @@ if (data.length > 0) {
 
 ## Regras
 
-1. SEMPRE instalar `xlsx` antes de usar (pode nao estar no projeto)
-2. SEMPRE limpar `node_modules`, `package.json` e `package-lock.json` apos terminar
+1. SEMPRE instalar `xlsx` em diretorio temporario (NUNCA no diretorio do projeto)
+2. SEMPRE limpar o diretorio temporario apos terminar
 3. Usar a ferramenta Bash para executar os scripts Node.js
 4. Para arquivos grandes, usar streams ou ler por ranges
 5. Nunca sobrescrever arquivo original sem confirmacao — salvar como novo arquivo ou pedir ao usuario

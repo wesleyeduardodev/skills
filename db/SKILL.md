@@ -2,6 +2,7 @@
 name: db
 description: "Analisa e gerencia bancos PostgreSQL. Queries SELECT via MCP postgres, operacoes DDL/DML via container Docker (auto-detectado). Use para verificar estado do banco, debugar dados, criar/alterar tabelas, rodar migracoes ou analisar queries."
 user-invocable: true
+disable-model-invocation: true
 argument-hint: [status | query SQL | criar tabela | o que precisa]
 ---
 
