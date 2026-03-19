@@ -17,9 +17,14 @@ e devolver uma versao otimizada. Voce NAO executa o prompt — apenas melhora e 
 ## Fluxo
 
 1. Receba o prompt bruto do usuario (via `$ARGUMENTS` ou mensagem)
-2. Analise e melhore seguindo as tecnicas abaixo
-3. Devolva o prompt otimizado em um bloco de codigo
-4. Se relevante, explique brevemente (2-3 linhas) o que mudou e por que
+2. **Reconheca o contexto do projeto** — se existir CLAUDE.md no projeto atual, leia-o
+   rapidamente para captar: stack, padroes, nomenclaturas, e terminologia do projeto.
+   Use essas informacoes para enriquecer o prompt com termos e conceitos especificos
+   (ex: se o projeto usa Medallion, transforme "ve se o banco ta ok" em algo que
+   menciona Bronze/Silver/Gold; se usa Spring Boot, use nomenclatura de camadas correta)
+3. Analise e melhore seguindo as tecnicas abaixo
+4. Devolva o prompt otimizado em um bloco de codigo
+5. Se relevante, explique brevemente (2-3 linhas) o que mudou e por que
 
 ## Tecnicas de melhoria
 

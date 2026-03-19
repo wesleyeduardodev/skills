@@ -131,6 +131,40 @@ Quando precisar passar caminhos de arquivos para o WSL (ex: docker-compose.yml),
 - Verificar se Docker esta rodando
 - Verificar status do WSL
 
+## Health check — Docker esta rodando?
+
+Antes de executar qualquer comando, verifique se o Docker esta acessivel:
+
+```bash
+wsl docker info > /dev/null 2>&1 && echo "Docker OK" || echo "Docker nao esta rodando"
+```
+
+Se nao estiver rodando, instrua: "Inicie o Docker Desktop e aguarde ele ficar pronto."
+
+## Troubleshooting — Comandos de diagnostico
+
+Quando um container nao sobe ou se comporta de forma inesperada:
+
+```bash
+# Ver por que o container parou (exit code e motivo)
+wsl docker inspect CONTAINER --format '{{.State.Status}} - ExitCode: {{.State.ExitCode}} - Error: {{.State.Error}}'
+
+# Ultimas linhas de log antes da falha
+wsl docker logs --tail 30 CONTAINER
+
+# Ver eventos recentes do container
+wsl docker events --filter container=CONTAINER --since 5m --until 0s
+
+# Verificar se a porta ja esta em uso
+wsl ss -tlnp | grep PORTA
+
+# Verificar recursos (memoria/CPU)
+wsl docker stats --no-stream CONTAINER
+
+# Verificar se o health check esta falhando
+wsl docker inspect CONTAINER --format '{{json .State.Health}}'
+```
+
 ## Descobrir docker-compose do projeto atual
 
 Se o usuario pedir para subir/descer servicos sem especificar o compose file,

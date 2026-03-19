@@ -133,11 +133,12 @@ await page.pdf({
 
 ```javascript
 const puppeteer = require('puppeteer');
+const { marked } = require('marked');
 const fs = require('fs');
 
-const markdown = fs.readFileSync('documento.md', 'utf8');
+const markdown = fs.readFileSync('/caminho/absoluto/documento.md', 'utf8');
+const htmlBody = marked(markdown);
 
-// Converter markdown basico para HTML (sem lib externa)
 const html = `<!DOCTYPE html>
 <html><head>
 <style>
@@ -150,10 +151,70 @@ const html = `<!DOCTYPE html>
   th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
   th { background: #f8f8f8; }
 </style>
-</head><body>${markdownToHtml(markdown)}</body></html>`;
+</head><body>${htmlBody}</body></html>`;
 
-// Para conversao completa de Markdown, considere instalar 'marked' no tmpdir
+(async () => {
+  const browser = await puppeteer.launch({headless: true});
+  const page = await browser.newPage();
+  await page.setContent(html, {waitUntil: 'networkidle0'});
+  await page.pdf({
+    path: '/caminho/absoluto/destino/documento.pdf',
+    format: 'A4',
+    printBackground: true,
+    margin: {top: '15mm', bottom: '15mm', left: '15mm', right: '15mm'}
+  });
+  await browser.close();
+  console.log('PDF gerado com sucesso');
+})();
 ```
+
+**Nota:** Instale `marked` junto com `puppeteer` no tmpdir:
+```bash
+cd "$TMPDIR" && npm install puppeteer marked --silent
+```
+
+## Snippet completo end-to-end
+
+Este e o fluxo real que deve ser seguido (tmpdir → instalar → gerar → copiar → limpar):
+
+```bash
+# 1. Guardar diretorio original do usuario
+ORIGINAL_DIR=$(pwd)
+
+# 2. Criar tmpdir e instalar dependencias
+TMPDIR=$(mktemp -d)
+cd "$TMPDIR" && npm init -y --silent && npm install puppeteer --silent
+
+# 3. Criar o script de geracao
+cat > "$TMPDIR/gerar.js" << 'SCRIPT'
+const puppeteer = require('puppeteer');
+const inputPath = process.argv[2];   // caminho absoluto do HTML
+const outputPath = process.argv[3];  // caminho absoluto do PDF de saida
+
+(async () => {
+  const browser = await puppeteer.launch({headless: true});
+  const page = await browser.newPage();
+  await page.goto('file:///' + inputPath, {waitUntil: 'networkidle0', timeout: 15000});
+  await page.pdf({
+    path: outputPath,
+    format: 'A4',
+    printBackground: true,
+    margin: {top: '15mm', bottom: '15mm', left: '15mm', right: '15mm'}
+  });
+  await browser.close();
+  console.log('PDF gerado: ' + outputPath);
+})();
+SCRIPT
+
+# 4. Executar (PDF salvo no diretorio do usuario, NAO no tmpdir)
+cd "$TMPDIR" && node gerar.js "/c/Users/wesle/docs/relatorio.html" "/c/Users/wesle/docs/relatorio.pdf"
+
+# 5. Limpar tmpdir
+rm -rf "$TMPDIR"
+```
+
+**IMPORTANTE:** O PDF de saida deve ser salvo no diretorio do usuario (caminho absoluto),
+nunca no tmpdir que sera deletado.
 
 ## Regras
 

@@ -148,7 +148,23 @@ Apos completar sua analise/trabalho, envie seus achados principais
 para os outros teammates via SendMessage para cruzamento.
 ```
 
-### Passo 5 — Consolidar resultado
+**Plan approval para implementacao:**
+Para tarefas que envolvem escrita de codigo, exija que teammates com papel de
+"arquiteto" ou "designer" tenham plan approval antes de implementar.
+Isso evita que teammates saiam codando sem validacao:
+
+```
+Spawn teammate com plan approval. So aprovar o plano se:
+- Definiu contratos claros (endpoints, DTOs, interfaces)
+- Nao ha conflito de arquivos com outros teammates
+- Segue os padroes do CLAUDE.md do projeto
+```
+
+### Passo 5 — Aguardar e consolidar resultado
+
+**IMPORTANTE:** NAO comece a implementar ou consolidar antes dos teammates terminarem.
+Se voce perceber que esta fazendo o trabalho dos teammates, pare e diga:
+"Aguardando teammates completarem suas tasks."
 
 Apos os teammates completarem, como team lead:
 

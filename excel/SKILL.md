@@ -71,13 +71,50 @@ rm -rf "$TMPDIR"
 - Excel → CSV
 - JSON/Array → Excel
 
+### Formatos suportados
+
+Alem de `.xlsx`, a lib `xlsx` (SheetJS) tambem suporta:
+- `.xls` (formato antigo Excel 97-2003)
+- `.csv` (comma-separated values)
+- `.ods` (OpenDocument — LibreOffice)
+- `.xlsb` (Excel binario)
+
+Todos usam o mesmo `XLSX.readFile()`. Nao precisa de tratamento especial.
+
+## Snippet completo end-to-end
+
+Este e o fluxo real que deve ser seguido (tmpdir → instalar → executar → limpar):
+
+```bash
+# 1. Criar diretorio temporario
+TMPDIR=$(mktemp -d)
+
+# 2. Instalar xlsx no tmpdir
+cd "$TMPDIR" && npm init -y --silent && npm install xlsx --silent
+
+# 3. Executar script (caminhos do arquivo devem ser absolutos)
+cd "$TMPDIR" && node -e "
+const XLSX = require('xlsx');
+const wb = XLSX.readFile('/c/Users/wesle/dados/planilha.xlsx');
+const ws = wb.Sheets[wb.SheetNames[0]];
+console.log(JSON.stringify(XLSX.utils.sheet_to_json(ws), null, 2));
+"
+
+# 4. Limpar
+rm -rf "$TMPDIR"
+```
+
+**IMPORTANTE:** Nos snippets abaixo, `require('xlsx')` funciona porque o script
+roda dentro do `$TMPDIR` onde a lib foi instalada. Sempre execute `cd "$TMPDIR"` antes.
+Caminhos de arquivos do usuario devem ser **absolutos** (nao relativos).
+
 ## Snippets prontos
 
 ### Ler arquivo completo (todas as abas)
 
 ```javascript
 const XLSX = require('xlsx');
-const wb = XLSX.readFile('arquivo.xlsx');
+const wb = XLSX.readFile('/caminho/absoluto/arquivo.xlsx');
 wb.SheetNames.forEach(name => {
   console.log('=== ABA: ' + name + ' ===');
   const ws = wb.Sheets[name];

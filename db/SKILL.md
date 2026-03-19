@@ -18,10 +18,10 @@ Usuario pede algo
     |
     ├─ E SELECT/leitura?
     │   └─ Usar mcp__postgres__query (se disponivel)
-    │       └─ Se MCP nao disponivel → usar container Docker
+    │       └─ Se MCP nao disponivel → tentar psql local → senao, container Docker
     |
     └─ E DDL/DML (CREATE, ALTER, INSERT, UPDATE, DELETE, DROP, REFRESH)?
-        └─ Descobrir container → executar via wsl docker exec
+        └─ Tentar psql local → senao, descobrir container → executar via wsl docker exec
 ```
 
 ## Leitura — MCP postgres
@@ -34,9 +34,26 @@ mcp__postgres__query("SELECT * FROM pg_tables WHERE schemaname = 'public'")
 
 Se o MCP postgres nao estiver configurado no projeto, usar o container Docker como fallback.
 
-## Escrita/DDL — Container Docker
+## Escrita/DDL — Detectar como conectar
 
-### Auto-discovery de container
+### Passo 1: Tentar psql local
+
+Antes de buscar container Docker, verifique se `psql` esta disponivel localmente:
+
+```bash
+which psql 2>/dev/null || where psql 2>/dev/null
+```
+
+Se `psql` estiver no PATH, tente conectar diretamente (util para Postgres local,
+RDS, Supabase, ou qualquer instancia acessivel por rede):
+
+```bash
+psql -h localhost -U postgres -d postgres -c "SELECT 1" 2>/dev/null
+```
+
+Se funcionar, use `psql` direto — sem Docker. Se nao, siga para o passo 2.
+
+### Passo 2: Auto-discovery de container
 
 Antes de executar DDL/DML, descobrir qual container Postgres esta rodando:
 
