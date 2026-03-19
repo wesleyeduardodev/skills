@@ -1,240 +1,76 @@
 ---
 name: pdf
-description: "Gera arquivos PDF a partir de HTML, Markdown ou conteudo dinamico. Use para criar documentos, relatorios, propostas e apresentacoes em PDF."
+description: "Gera arquivos PDF. Converte HTML, Markdown ou cria PDFs do zero a partir de instrucoes. Use para criar relatorios, documentos, propostas, fichas ou converter arquivos existentes para PDF."
 user-invocable: true
 disable-model-invocation: true
-argument-hint: [gerar pdf de arquivo.html | criar relatorio pdf | converter markdown para pdf]
+argument-hint: [gerar pdf de arquivo.html | criar relatorio pdf | converter README.md para pdf]
 ---
 
 # PDF Generator
 
-Voce gera arquivos PDF a partir de HTML usando Node.js com Puppeteer.
-
-## Ambiente
-
-- **Runtime:** Node.js (disponivel no PATH)
-- **Lib:** `puppeteer` — instalar sob demanda em diretorio temporario
-- **Shell:** Git Bash (MINGW64)
-
-## REGRA CRITICA: Instalar dependencia em diretorio temporario
-
-NUNCA instale no diretorio do projeto do usuario (pode sobrescrever node_modules/package.json
-existentes). Use um diretorio temporario:
-
-```bash
-TMPDIR=$(mktemp -d)
-cd "$TMPDIR" && npm init -y --silent && npm install puppeteer --silent
-```
-
-Execute scripts referenciando o diretorio temporario:
-
-```bash
-cd "$TMPDIR" && node script.js
-```
-
-Apos terminar, limpe:
-
-```bash
-rm -rf "$TMPDIR"
-```
+Voce gera arquivos PDF. O usuario diz o que precisa e voce entrega o PDF pronto.
 
 ## O que voce sabe fazer
 
-### A partir de arquivo HTML
-- Converter arquivo HTML existente em PDF
-- Processar HTML com CSS externo, imagens e fontes
+- Converter arquivo HTML existente para PDF
+- Converter arquivo Markdown para PDF
+- Criar PDFs do zero a partir de instrucoes do usuario (relatorios, tabelas, propostas, fichas)
+- Configurar formato (A4, Letter, paisagem), margens, header/footer com numeracao de paginas
 
-### A partir de conteudo gerado
-- Criar HTML na memoria e converter em PDF
-- Gerar relatorios com tabelas, graficos e layouts profissionais
-- Criar documentos formatados (propostas, contratos, fichas)
+## Como funciona internamente
 
-### A partir de Markdown
-- Converter Markdown para HTML e depois para PDF
-- Aplicar estilos profissionais ao Markdown renderizado
+Use Puppeteer (Node.js) para gerar os PDFs. O processo interno e:
+1. Criar diretorio temporario (`mktemp -d`)
+2. Instalar `puppeteer` (e `marked` se precisar de Markdown) no tmpdir
+3. Montar HTML com CSS profissional (o usuario NAO precisa saber disso)
+4. Renderizar e salvar o PDF no diretorio do usuario (caminho absoluto)
+5. Limpar o tmpdir
 
-### Configuracoes
-- Formato de pagina (A4, Letter, A3, Legal, Tabloid)
-- Orientacao (retrato/paisagem)
-- Margens customizadas
-- Header e footer com numeracao de paginas
-- Backgrounds e cores
-- Escala e range de paginas
+**REGRAS CRITICAS:**
+- NUNCA instale dependencias no diretorio do projeto (usar tmpdir)
+- O PDF de saida deve ser salvo no diretorio do usuario, NAO no tmpdir
+- Caminhos de entrada e saida devem ser absolutos
+- SEMPRE usar `printBackground: true` para incluir cores e backgrounds
+- No Windows/Git Bash, usar barras normais: `file:///C:/pasta/arquivo.html`
+- Para fontes do Google Fonts, usar `waitUntil: 'networkidle0'`
+- Limpar o tmpdir apos gerar o PDF
 
-## Snippet principal: HTML para PDF
+## Opcoes de formatacao
 
-```javascript
-const puppeteer = require('puppeteer');
-(async () => {
-  const browser = await puppeteer.launch({headless: true});
-  const page = await browser.newPage();
-  await page.goto('file:///caminho/absoluto/arquivo.html', {waitUntil: 'networkidle0', timeout: 15000});
-  await page.pdf({
-    path: 'saida.pdf',
-    format: 'A4',
-    printBackground: true,
-    margin: {top: '15mm', bottom: '15mm', left: '15mm', right: '15mm'}
-  });
-  await browser.close();
-  console.log('PDF gerado com sucesso');
-})();
-```
+| Opcao | Valores | Default |
+|-------|---------|---------|
+| Formato | A4, A3, Letter, Legal, Tabloid | A4 |
+| Orientacao | retrato, paisagem | retrato |
+| Margens | em mm (ex: 15mm) | 15mm todos os lados |
+| Header/Footer | texto customizado + numeracao de paginas | sem |
+| Background | cores e imagens | sim |
 
-### Gerar PDF a partir de string HTML
+## Estilo dos PDFs gerados
 
-```javascript
-const puppeteer = require('puppeteer');
-(async () => {
-  const html = '<html><body><h1>Titulo</h1><p>Conteudo</p></body></html>';
-  const browser = await puppeteer.launch({headless: true});
-  const page = await browser.newPage();
-  await page.setContent(html, {waitUntil: 'networkidle0'});
-  await page.pdf({
-    path: 'saida.pdf',
-    format: 'A4',
-    printBackground: true,
-    margin: {top: '15mm', bottom: '15mm', left: '15mm', right: '15mm'}
-  });
-  await browser.close();
-  console.log('PDF gerado com sucesso');
-})();
-```
-
-### Opcoes de page.pdf()
-
-| Opcao | Tipo | Descricao |
-|-------|------|-----------|
-| `path` | String | Caminho do PDF de saida |
-| `format` | String | Formato: 'A4', 'A3', 'Letter', 'Legal', 'Tabloid' |
-| `printBackground` | Boolean | Incluir cores/backgrounds (default: false) |
-| `landscape` | Boolean | Orientacao paisagem (default: false) |
-| `margin` | Object | Margens: {top, bottom, left, right} em px, mm, cm ou in |
-| `displayHeaderFooter` | Boolean | Mostrar header/footer (default: false) |
-| `headerTemplate` | String | HTML do header |
-| `footerTemplate` | String | HTML do footer |
-| `scale` | Number | Escala do conteudo (0.1 a 2, default: 1) |
-| `pageRanges` | String | Ex: '1-5', '1,3,5' |
-
-### PDF com header e footer customizados
-
-```javascript
-await page.pdf({
-  path: 'saida.pdf',
-  format: 'A4',
-  printBackground: true,
-  displayHeaderFooter: true,
-  margin: {top: '25mm', bottom: '20mm', left: '15mm', right: '15mm'},
-  headerTemplate: '<div style="font-size:9px; width:100%; text-align:center; color:#999;">Meu Relatorio</div>',
-  footerTemplate: '<div style="font-size:9px; width:100%; text-align:center; color:#999;">Pagina <span class="pageNumber"></span> de <span class="totalPages"></span></div>'
-});
-```
-
-### Converter Markdown para PDF
-
-```javascript
-const puppeteer = require('puppeteer');
-const { marked } = require('marked');
-const fs = require('fs');
-
-const markdown = fs.readFileSync('/caminho/absoluto/documento.md', 'utf8');
-const htmlBody = marked(markdown);
-
-const html = `<!DOCTYPE html>
-<html><head>
-<style>
-  body { font-family: -apple-system, Arial, sans-serif; max-width: 800px; margin: 40px auto; line-height: 1.6; color: #333; padding: 0 20px; }
-  h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
-  h2 { border-bottom: 1px solid #eee; padding-bottom: 8px; }
-  code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-  pre code { display: block; padding: 16px; overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-  th { background: #f8f8f8; }
-</style>
-</head><body>${htmlBody}</body></html>`;
-
-(async () => {
-  const browser = await puppeteer.launch({headless: true});
-  const page = await browser.newPage();
-  await page.setContent(html, {waitUntil: 'networkidle0'});
-  await page.pdf({
-    path: '/caminho/absoluto/destino/documento.pdf',
-    format: 'A4',
-    printBackground: true,
-    margin: {top: '15mm', bottom: '15mm', left: '15mm', right: '15mm'}
-  });
-  await browser.close();
-  console.log('PDF gerado com sucesso');
-})();
-```
-
-**Nota:** Instale `marked` junto com `puppeteer` no tmpdir:
-```bash
-cd "$TMPDIR" && npm install puppeteer marked --silent
-```
-
-## Snippet completo end-to-end
-
-Este e o fluxo real que deve ser seguido (tmpdir → instalar → gerar → copiar → limpar):
-
-```bash
-# 1. Guardar diretorio original do usuario
-ORIGINAL_DIR=$(pwd)
-
-# 2. Criar tmpdir e instalar dependencias
-TMPDIR=$(mktemp -d)
-cd "$TMPDIR" && npm init -y --silent && npm install puppeteer --silent
-
-# 3. Criar o script de geracao
-cat > "$TMPDIR/gerar.js" << 'SCRIPT'
-const puppeteer = require('puppeteer');
-const inputPath = process.argv[2];   // caminho absoluto do HTML
-const outputPath = process.argv[3];  // caminho absoluto do PDF de saida
-
-(async () => {
-  const browser = await puppeteer.launch({headless: true});
-  const page = await browser.newPage();
-  await page.goto('file:///' + inputPath, {waitUntil: 'networkidle0', timeout: 15000});
-  await page.pdf({
-    path: outputPath,
-    format: 'A4',
-    printBackground: true,
-    margin: {top: '15mm', bottom: '15mm', left: '15mm', right: '15mm'}
-  });
-  await browser.close();
-  console.log('PDF gerado: ' + outputPath);
-})();
-SCRIPT
-
-# 4. Executar (PDF salvo no diretorio do usuario, NAO no tmpdir)
-cd "$TMPDIR" && node gerar.js "/c/Users/wesle/docs/relatorio.html" "/c/Users/wesle/docs/relatorio.pdf"
-
-# 5. Limpar tmpdir
-rm -rf "$TMPDIR"
-```
-
-**IMPORTANTE:** O PDF de saida deve ser salvo no diretorio do usuario (caminho absoluto),
-nunca no tmpdir que sera deletado.
+Quando criar PDFs do zero (sem arquivo de entrada), use CSS profissional:
+- Fonte: system-ui ou Arial, legivel
+- Tabelas: bordas sutis, header com fundo cinza claro, padding adequado
+- Titulos: hierarquia visual clara (h1 > h2 > h3)
+- Cores: sobriedade profissional, sem exageros
+- Espaçamento: line-height 1.6, margens entre secoes
 
 ## Regras
 
-1. SEMPRE instalar `puppeteer` em diretorio temporario (NUNCA no diretorio do projeto)
-2. SEMPRE limpar o diretorio temporario apos terminar
-3. Usar a ferramenta Bash para executar os scripts Node.js
-4. Para HTML com fontes do Google Fonts, usar `waitUntil: 'networkidle0'` para aguardar carregamento
-5. SEMPRE usar `printBackground: true` para incluir cores e backgrounds
-6. Nunca sobrescrever PDF existente sem confirmacao
-7. Caminhos devem ser absolutos no `page.goto()` com prefixo `file:///`
-8. No Windows/Git Bash, usar barras normais nos caminhos: `file:///C:/pasta/arquivo.html`
-9. Se o usuario passar `$ARGUMENTS`, interpretar e executar direto
+1. SEMPRE instalar dependencias em diretorio temporario (NUNCA no projeto)
+2. SEMPRE limpar o tmpdir apos gerar
+3. SEMPRE salvar o PDF no diretorio do usuario (caminho absoluto)
+4. Nunca sobrescrever PDF existente sem confirmacao
+5. Se o usuario passar `$ARGUMENTS`, interpretar e executar direto
+6. Se o usuario nao especificar nome de saida, usar o nome do arquivo de entrada com extensao .pdf
+7. Se o usuario pedir algo vago ("gera um pdf"), perguntar o conteudo
 
 ## Execucao com argumentos
 
-Se o usuario invocar `/pdf $ARGUMENTS`, interprete o que foi pedido e execute.
+Se o usuario invocar `/pdf $ARGUMENTS`, interprete e execute.
 
 Exemplos:
-- `/pdf gerar de relatorio.html` → converte HTML em PDF
-- `/pdf criar documento A4 paisagem` → cria PDF em paisagem
-- `/pdf converter todos os html da pasta docs/` → converte multiplos arquivos
-- `/pdf converter README.md para pdf` → Markdown → HTML → PDF
-- `/pdf gerar relatorio de vendas com tabela` → cria HTML com dados e gera PDF
+- `/pdf gerar de relatorio.html` → converte para PDF
+- `/pdf converter README.md para pdf` → Markdown → PDF
+- `/pdf criar relatorio de vendas com tabela de dados X` → gera HTML interno → PDF
+- `/pdf documento A4 paisagem com header "Meu Relatorio"` → PDF formatado
+- `/pdf converter todos os .md da pasta docs/` → converte multiplos arquivos
