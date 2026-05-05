@@ -1,15 +1,21 @@
 ---
 name: db-geral
-description: "Analisa e gerencia bancos PostgreSQL. Queries SELECT via MCP postgres, operacoes DDL/DML via container Docker (auto-detectado). Use para verificar estado do banco, debugar dados, criar/alterar tabelas, rodar migracoes ou analisar queries."
+description: "Analisa e gerencia bancos PostgreSQL no Windows 11 com Docker Desktop. Queries SELECT via MCP postgres, operacoes DDL/DML via psql local ou container Docker (auto-detectado). Use para verificar estado do banco, debugar dados, criar/alterar tabelas, rodar migracoes ou analisar queries."
 user-invocable: true
 disable-model-invocation: true
+allowed-tools: Bash, Read, Glob, Grep
 argument-hint: [status | query SQL | criar tabela | o que precisa]
 ---
 
 # Database Manager — PostgreSQL
 
-Voce gerencia bancos PostgreSQL. Para leitura usa MCP postgres, para escrita/DDL acessa
-o container Docker do banco via WSL.
+Voce gerencia bancos PostgreSQL em ambiente **Windows 11 Pro + Docker Desktop**.
+Para leitura usa MCP postgres, para escrita/DDL acessa o container Docker
+diretamente (Docker Desktop expoe `docker` no PATH — NUNCA usar `wsl docker`).
+
+Use SEMPRE a ferramenta **Bash** para executar comandos shell desta skill
+(sintaxe POSIX, heredocs, etc). Se precisar interagir com PowerShell, troque
+explicitamente para a ferramenta PowerShell.
 
 ## Fluxo de decisao
 
@@ -21,7 +27,7 @@ Usuario pede algo
     │       └─ Se MCP nao disponivel → tentar psql local → senao, container Docker
     |
     └─ E DDL/DML (CREATE, ALTER, INSERT, UPDATE, DELETE, DROP, REFRESH)?
-        └─ Tentar psql local → senao, descobrir container → executar via wsl docker exec
+        └─ Tentar psql local → senao, descobrir container → executar via docker exec
 ```
 
 ## Leitura — MCP postgres
@@ -41,26 +47,27 @@ Se o MCP postgres nao estiver configurado no projeto, usar o container Docker co
 Antes de buscar container Docker, verifique se `psql` esta disponivel localmente:
 
 ```bash
-which psql 2>/dev/null || where psql 2>/dev/null
+command -v psql 2>/dev/null
 ```
 
 Se `psql` estiver no PATH, tente conectar diretamente (util para Postgres local,
 RDS, Supabase, ou qualquer instancia acessivel por rede):
 
 ```bash
-psql -h localhost -U postgres -d postgres -c "SELECT 1" 2>/dev/null
+PGPASSWORD="${PGPASSWORD:-postgres}" psql -h localhost -U postgres -d postgres -c "SELECT 1" 2>/dev/null
 ```
 
 Se funcionar, use `psql` direto — sem Docker. Se nao, siga para o passo 2.
 
-### Passo 2: Auto-discovery de container
+### Passo 2: Auto-discovery de container (Docker Desktop)
 
-Antes de executar DDL/DML, descobrir qual container Postgres esta rodando:
+Docker Desktop expoe `docker` direto no PATH do Windows — sem prefixo `wsl`.
+Para descobrir qual container Postgres esta rodando:
 
 ```bash
-wsl docker ps --filter "ancestor=postgres" --format "{{.Names}}" 2>/dev/null
-wsl docker ps --filter "ancestor=pgvector/pgvector" --format "{{.Names}}" 2>/dev/null
-wsl docker ps | grep -i postgres | awk '{print $NF}' 2>/dev/null
+docker ps --filter "ancestor=postgres" --format "{{.Names}}"
+docker ps --filter "ancestor=pgvector/pgvector" --format "{{.Names}}"
+docker ps --format "{{.Names}}\t{{.Image}}" | grep -i postgres
 ```
 
 **Regras de decisao:**
@@ -74,7 +81,7 @@ Apos encontrar o container, extrair credenciais via inspect:
 
 ```bash
 # Extrair usuario e banco das env vars do container
-wsl docker inspect CONTAINER --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E 'POSTGRES_USER|POSTGRES_DB|POSTGRES_PASSWORD'
+docker inspect CONTAINER --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E 'POSTGRES_USER|POSTGRES_DB|POSTGRES_PASSWORD'
 ```
 
 **Fallback se nao encontrar env vars:**
@@ -86,19 +93,29 @@ wsl docker inspect CONTAINER --format '{{range .Config.Env}}{{println .}}{{end}}
 
 ```bash
 # Query unica
-wsl docker exec -i CONTAINER psql -U USUARIO -d DATABASE -c "SQL_AQUI"
+docker exec -i CONTAINER psql -U USUARIO -d DATABASE -c "SQL_AQUI"
 
-# Arquivo SQL
-wsl docker exec -i CONTAINER psql -U USUARIO -d DATABASE < arquivo.sql
+# Arquivo SQL (usar caminho absoluto Windows convertido p/ POSIX no Git Bash)
+docker exec -i CONTAINER psql -U USUARIO -d DATABASE < /c/projetos/.../arquivo.sql
 
-# Sessao interativa (quando precisar de multiplos comandos)
-wsl docker exec -i CONTAINER psql -U USUARIO -d DATABASE <<'EOF'
+# Sessao com multiplos comandos (heredoc — bash only)
+docker exec -i CONTAINER psql -U USUARIO -d DATABASE <<'EOF'
 BEGIN;
 CREATE TABLE ...;
 INSERT INTO ...;
 COMMIT;
 EOF
 ```
+
+**Nota Windows:** se rodar via PowerShell, substitua o heredoc por here-string:
+```powershell
+@'
+BEGIN;
+CREATE TABLE ...;
+COMMIT;
+'@ | docker exec -i CONTAINER psql -U USUARIO -d DATABASE
+```
+A linha `'@` precisa estar na coluna 0 (sem indentacao).
 
 ## O que voce sabe fazer
 
@@ -184,13 +201,15 @@ ORDER BY matviewname;
 
 ## Regras
 
-1. SELECT → MCP postgres (se disponivel), senao container Docker
-2. DDL/DML → sempre via container Docker com `wsl docker exec`
-3. Auto-detectar container e credenciais antes de pedir ao usuario
-4. Operacoes destrutivas (DROP, TRUNCATE, DELETE) → confirmacao obrigatoria
-5. Sempre mostrar SQL antes de executar DDL
-6. Se o usuario passar `$ARGUMENTS`, interpretar e executar direto
-7. Formatar resultados de forma legivel (tabelas alinhadas)
+1. SELECT → MCP postgres (se disponivel), senao psql local, senao container Docker
+2. DDL/DML → psql local (se conectar) ou `docker exec` (Docker Desktop)
+3. NUNCA usar `wsl docker` — Docker Desktop expoe `docker` direto no PATH
+4. Auto-detectar container e credenciais antes de pedir ao usuario
+5. Operacoes destrutivas (DROP, TRUNCATE, DELETE) → confirmacao obrigatoria
+6. Sempre mostrar SQL antes de executar DDL
+7. Se o usuario passar `$ARGUMENTS`, interpretar e executar direto
+8. Formatar resultados de forma legivel (tabelas alinhadas)
+9. Se Docker Desktop nao estiver rodando, instruir o usuario a inicia-lo
 
 ## Execucao com argumentos
 

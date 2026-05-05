@@ -1,13 +1,14 @@
 ---
 name: team
 description: >
-  Recebe qualquer prompt em linguagem natural, melhora e otimiza ele automaticamente,
-  e cria um Agent Team para executar. Funciona para qualquer tipo de tarefa: revisao,
-  analise, implementacao, debug, pesquisa, refatoracao, etc. Transforma pedidos vagos
-  em prompts estruturados com teammates especializados, tasks com dependencias, e
-  comunicacao entre agents. Use quando o usuario mencionar: montar time, criar team,
-  agent team, trabalho em paralelo com teammates, ou invocar /team seguido de qualquer pedido.
+  Cria um Agent Team para executar tarefas que se beneficiam de paralelismo e
+  comunicacao entre agentes (revisao multi-perspectiva, implementacao cross-stack,
+  debug com hipoteses concorrentes). Antes de criar o time, otimiza o prompt do
+  usuario aplicando os principios da skill prompt e descobre escopo concreto
+  (arquivos, modulos). Use quando o usuario invocar /team seguido do pedido,
+  ou pedir explicitamente: montar time, agent team, trabalho em paralelo.
 user-invocable: true
+disable-model-invocation: true
 argument-hint: [descreva o que precisa ser feito]
 ---
 
@@ -31,45 +32,34 @@ Agent Teams e o unico mecanismo aceito por esta skill.
 
 ### Passo 1 — Melhorar o prompt
 
-O usuario vai enviar um prompt bruto, informal, incompleto. Sua primeira tarefa
-e transformar esse prompt num prompt otimizado para Agent Teams.
+O usuario vai enviar um prompt bruto. Antes de criar o time, otimize-o.
 
-**Tecnicas de melhoria:**
+Para a otimizacao geral (clareza, especificidade, criterios de sucesso, formato
+de saida, remocao de anti-patterns) **siga os principios da skill `prompt`** —
+nao duplique a logica aqui. Releia `~/.claude/skills/prompt/SKILL.md` se precisar
+de detalhes sobre essas tecnicas.
 
-1. **Extraia a intencao real**
-   - O que o usuario quer de verdade? Qual e o resultado final esperado?
-   - "ve se ta ok" → validar coerencia e identificar problemas acionaveis
-   - "faz isso" → implementar com divisao clara de responsabilidades
+Foco DESTA skill (especifico de Agent Teams):
 
-2. **Descubra o escopo**
-   - Quais arquivos, modulos, camadas ou sistemas estao envolvidos?
-   - Se o usuario mencionou algo vago ("o frontend"), explore o projeto para
-     identificar os artefatos concretos (caminhos reais de arquivos)
-   - Use Glob/Read para descobrir o que existe antes de montar o time
+1. **Descubra o escopo concreto antes de montar o time**
+   - Use Glob/Read para mapear arquivos, modulos, camadas reais
+   - Substitua "o frontend" por caminhos concretos (`src/pages/...`, `src/components/...`)
+   - Sem escopo concreto, os teammates trabalham no escuro
 
-3. **Defina criterios de sucesso**
-   - O usuario quase nunca especifica como avaliar o resultado
-   - Adicione criterios relevantes para o tipo de tarefa:
-     - Revisao: coerencia, completude, contradicoes, lacunas
-     - Implementacao: funciona, segue padroes, tem testes, sem regressao
-     - Debug: causa raiz identificada, fix validado, sem efeitos colaterais
-     - Pesquisa: fontes cruzadas, hipoteses testadas, recomendacao clara
+2. **Estruture teammates com papeis NAO sobrepostos**
+   - Cada teammate: nome (kebab-case), papel, escopo, arquivos, entregavel
+   - Se dois teammates podem fazer a mesma coisa, fundir ou redividir
+   - Pense em perspectivas complementares (nao duplicadas)
 
-4. **Estruture teammates com papeis claros**
-   - Cada teammate precisa de: nome, papel, escopo, arquivos, entregavel
-   - Sem sobreposicao — se dois teammates podem fazer a mesma coisa, esta errado
-   - Pense em perspectivas complementares, nao duplicadas
+3. **Desenhe a comunicacao entre teammates**
+   - Este e o diferencial de Agent Teams vs subagents — USE
+   - Defina momentos de cruzamento explicitos: "apos analise individual,
+     trocar achados via SendMessage para identificar conflitos/consensos"
+   - Sem cruzamento, voce esta usando subagents disfarcados — overhead sem ganho
 
-5. **Defina o formato de saida**
-   - Tabela para revisoes/auditorias
-   - Codigo para implementacoes
-   - Documento para pesquisas
-   - Diagnostico para debug
-
-6. **Adicione comunicacao entre teammates**
-   - Agent Teams permitem que teammates conversem entre si — USE ISSO
-   - Defina momentos de cruzamento: "apos analise individual, troquem achados"
-   - Isso diferencia Agent Teams de subagents simples
+4. **Defina o entregavel final consolidado**
+   - O lead consolida — que formato? (tabela, codigo, diagnostico, documento)
+   - Sem isso, voce recebe N relatorios soltos sem sintese
 
 **IMPORTANTE:** Mostre o prompt melhorado ao usuario antes de criar o time.
 Exiba assim:

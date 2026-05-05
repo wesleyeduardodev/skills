@@ -1,10 +1,12 @@
 ---
 name: prompt
 description: >
-  Recebe qualquer prompt em linguagem natural e devolve uma versao otimizada, clara e
-  estruturada. Nao executa nada — apenas melhora o prompt. Use quando o usuario mencionar:
-  melhorar prompt, otimizar prompt, reescrever prompt, refinar instrucao, prompt engineering,
-  ou invocar /prompt seguido do texto a melhorar.
+  Otimiza prompts em linguagem natural — recebe um pedido bruto e devolve uma
+  versao clara, estruturada e calibrada para a complexidade da tarefa. Nao
+  executa nada, apenas melhora. Le CLAUDE.md do projeto (se existir) para
+  enriquecer o prompt com terminologia local. Use quando o usuario mencionar:
+  melhorar prompt, otimizar prompt, reescrever prompt, refinar instrucao,
+  prompt engineering, ou invocar /prompt seguido do texto a melhorar.
 user-invocable: true
 argument-hint: [o prompt que voce quer melhorar]
 ---

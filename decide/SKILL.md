@@ -1,11 +1,12 @@
 ---
 name: decide
 description: >
-  Analisa qualquer prompt ou descricao de tarefa e recomenda o metodo mais adequado
-  de execucao no Claude Code: SKILL, SUBAGENT ou AGENT TEAM. Explica o por que da
-  escolha e como implementar. Use quando o usuario mencionar: qual metodo usar,
-  skill ou subagent, skill ou team, como executar, melhor abordagem, decidir metodo,
-  ou invocar /decide seguido da descricao da tarefa.
+  Recomenda o metodo ideal de execucao no Claude Code (SESSAO UNICA, SKILL,
+  SUBAGENT ou AGENT TEAM) para uma tarefa. Analisa escala, paralelismo,
+  necessidade de isolamento e comunicacao entre agentes; justifica a escolha
+  e explica como implementar. Use quando o usuario perguntar qual metodo usar,
+  skill vs subagent vs team, melhor abordagem, ou invocar /decide seguido da
+  descricao da tarefa.
 user-invocable: true
 argument-hint: [descreva a tarefa que quer executar]
 ---
@@ -91,7 +92,8 @@ mudar materialmente a recomendacao.
 - "frontend E backend E testes simultaneamente"
 - "investigue hipoteses diferentes e convirjam"
 - Agentes que PRECISAM trocar informacoes entre si
-- Custo: alto (N sessoes + coordenacao). Experimental, requer feature flag
+- Custo: alto (N sessoes + coordenacao). Recurso experimental, mas habilitado
+  no ambiente atual (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`)
 
 ## Mapa rapido de complexidade
 
