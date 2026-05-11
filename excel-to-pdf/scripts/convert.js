@@ -23,9 +23,54 @@ function parseArgs(argv) {
     else if (a === '--font-size') args.fontSize = parseInt(argv[++i], 10);
     else if (a === '--max-rows') args.maxRows = parseInt(argv[++i], 10);
     else if (a === '--header-row') args.headerRow = parseInt(argv[++i], 10);
+    else if (a === '--highlight') args.highlight = argv[++i];
     else args._.push(a);
   }
   return args;
+}
+
+const BR_DATE_RE = /^data\b/i;
+const BR_CURRENCY_RE = /valor|R\$|total\b|pre[çc]o|sal[aá]rio|custo|montante|saldo/i;
+const NARROW_COL_RE = /^(#|n[º°o]\.?|item|id|seq)$/i;
+
+function excelSerialToUtcDate(serial) {
+  return new Date(Math.round((serial - 25569) * 86400 * 1000));
+}
+
+function formatDateBR(d) {
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function formatCurrencyBR(n) {
+  return n.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function colWidthHint(name) {
+  const trimmed = String(name).trim();
+  if (NARROW_COL_RE.test(trimmed)) return '3%';
+  if (/^data\b/i.test(trimmed)) return '7%';
+  if (/^hora\b/i.test(trimmed)) return '6%';
+  if (BR_CURRENCY_RE.test(trimmed)) return '8%';
+  return null;
+}
+
+function isSummaryRow(row, columns) {
+  const firstVal = row[columns[0]];
+  if (typeof firstVal !== 'string' || firstVal.trim().length < 4) return false;
+  let emptyCount = 0;
+  for (let i = 1; i < columns.length; i++) {
+    const v = row[columns[i]];
+    if (v === null || v === undefined || v === '') emptyCount++;
+  }
+  return emptyCount >= columns.length - 3;
 }
 
 function escapeHtml(s) {
@@ -37,17 +82,23 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
-function formatCell(v) {
+function formatCellByColumn(v, colName) {
   if (v === null || v === undefined) return '';
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (v instanceof Date) return formatDateBR(v);
   if (typeof v === 'number') {
+    if (BR_CURRENCY_RE.test(colName)) return formatCurrencyBR(v);
+    if (BR_DATE_RE.test(colName) && v > 25569 && v < 80000) {
+      return formatDateBR(excelSerialToUtcDate(v));
+    }
     return Number.isInteger(v) ? String(v) : v.toFixed(2);
   }
   return String(v);
 }
 
 // Heuristica simples de alinhamento por coluna: se >70% das celulas sao numericas, alinha a direita.
+// Excecao: colunas de data alinham a esquerda mesmo quando armazenadas como numero serial.
 function detectAlignment(rows, colName) {
+  if (BR_DATE_RE.test(colName)) return 'left';
   let numCount = 0;
   let total = 0;
   for (const r of rows) {
@@ -59,27 +110,67 @@ function detectAlignment(rows, colName) {
   return total > 0 && numCount / total > 0.7 ? 'right' : 'left';
 }
 
-function buildHtml({ title, sourceFile, sheet, totalRows, columns, rows, alignments, fontSize }) {
+function buildHtml({ title, sourceFile, sheet, totalRows, columns, rows, alignments, fontSize, highlightSet }) {
   const generatedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  const colgroup = `
+    <colgroup>
+      ${columns.map(c => {
+        const w = colWidthHint(c);
+        return w ? `<col style="width: ${w}">` : '<col>';
+      }).join('')}
+    </colgroup>`;
 
   const thead = `
     <thead>
       <tr>
-        ${columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}
+        ${columns.map(c => {
+          const hi = highlightSet.has(c) ? ' highlight' : '';
+          return `<th class="align-${alignments[c]}${hi}">${escapeHtml(c)}</th>`;
+        }).join('')}
       </tr>
     </thead>`;
 
+  const renderDataRow = (r, rowClass) => `
+    <tr class="${rowClass}">
+      ${columns.map(c => {
+        const val = formatCellByColumn(r[c], c);
+        const align = alignments[c];
+        const hi = highlightSet.has(c) ? ' highlight' : '';
+        return `<td class="align-${align}${hi}">${escapeHtml(val)}</td>`;
+      }).join('')}
+    </tr>`;
+
+  const renderSummaryRow = (r, rowClass) => {
+    const label = formatCellByColumn(r[columns[0]], columns[0]);
+    let valueIdx = -1;
+    for (let j = 1; j < columns.length; j++) {
+      const v = r[columns[j]];
+      if (v !== null && v !== undefined && v !== '') { valueIdx = j; break; }
+    }
+    if (valueIdx === -1) {
+      return `
+    <tr class="summary ${rowClass}">
+      <td colspan="${columns.length}" class="summary-label">${escapeHtml(label)}</td>
+    </tr>`;
+    }
+    const valueCol = columns[valueIdx];
+    const value = formatCellByColumn(r[valueCol], valueCol);
+    const remainingCols = columns.length - valueIdx - 1;
+    return `
+    <tr class="summary ${rowClass}">
+      <td colspan="${valueIdx}" class="summary-label">${escapeHtml(label)}</td>
+      <td class="align-${alignments[valueCol]} summary-value">${escapeHtml(value)}</td>
+      ${remainingCols > 0 ? `<td colspan="${remainingCols}"></td>` : ''}
+    </tr>`;
+  };
+
   const tbody = `
     <tbody>
-      ${rows.map((r, i) => `
-        <tr class="${i % 2 === 0 ? 'even' : 'odd'}">
-          ${columns.map(c => {
-            const val = formatCell(r[c]);
-            const align = alignments[c];
-            return `<td class="align-${align}">${escapeHtml(val)}</td>`;
-          }).join('')}
-        </tr>
-      `).join('')}
+      ${rows.map((r, i) => {
+        const rowClass = i % 2 === 0 ? 'even' : 'odd';
+        return isSummaryRow(r, columns) ? renderSummaryRow(r, rowClass) : renderDataRow(r, rowClass);
+      }).join('')}
     </tbody>`;
 
   return `<!DOCTYPE html>
@@ -135,6 +226,11 @@ function buildHtml({ title, sourceFile, sheet, totalRows, columns, rows, alignme
   .align-right { text-align: right; }
   .align-left  { text-align: left; }
   tr { page-break-inside: avoid; }
+  td.highlight { background-color: #fff3cd; font-weight: 600; }
+  th.highlight { background-color: #ffe69c; color: #5a3e00; }
+  tr.summary td { background: #e8eef5 !important; border-top: 2px solid #6c757d; font-weight: 600; }
+  tr.summary td.summary-label { text-align: right; padding-right: 10px; color: #1a1a1a; }
+  tr.summary td.summary-value { font-weight: 700; color: #1a1a1a; }
 </style>
 </head>
 <body>
@@ -149,6 +245,7 @@ function buildHtml({ title, sourceFile, sheet, totalRows, columns, rows, alignme
     </div>
   </header>
   <table>
+    ${colgroup}
     ${thead}
     ${tbody}
   </table>
@@ -215,6 +312,15 @@ function buildHtml({ title, sourceFile, sheet, totalRows, columns, rows, alignme
 
   const alignments = Object.fromEntries(columns.map(c => [c, detectAlignment(rows, c)]));
 
+  const highlightSet = new Set(
+    (args.highlight || '').split(',').map(s => s.trim()).filter(Boolean)
+  );
+  const missingHighlight = [...highlightSet].filter(c => !columns.includes(c));
+  if (missingHighlight.length > 0) {
+    console.error(`colunas de highlight nao encontradas: ${missingHighlight.join(', ')}`);
+    process.exit(7);
+  }
+
   const html = buildHtml({
     title: args.title || path.basename(inputFile, path.extname(inputFile)),
     sourceFile: absInput,
@@ -224,6 +330,7 @@ function buildHtml({ title, sourceFile, sheet, totalRows, columns, rows, alignme
     rows,
     alignments,
     fontSize: args.fontSize || 9,
+    highlightSet,
   });
 
   fs.mkdirSync(path.dirname(absOutput), { recursive: true });
